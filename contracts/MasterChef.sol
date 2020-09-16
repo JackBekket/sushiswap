@@ -141,7 +141,7 @@ contract MasterChef is Ownable {
         lpToken.safeApprove(address(migrator), bal);
         IERC20 newLpToken = migrator.migrate(lpToken);
         uint256 delta = bal.sub(newLpToken.balanceOf(address(this));  // difference between SLP and LP
-        uint256 delta_percent = delta.div(100);                       // delta in percent
+        uint256 delta_percent = delta.div(1000);                       // delta in percent
         require(bal == newLpToken.balanceOf(address(this)), "migrate: bad"); // refactor to check with delta
         pool.lpToken = newLpToken;
     }
