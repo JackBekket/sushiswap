@@ -13,12 +13,12 @@ contract Migrator {
 
     constructor(
         address _chef,
-        address _oldFactory,
-        IUniswapV2Factory _factory,
+        address _oldFactory,  // UniSwapFactory , should be replaced to SushiSwapFactory for backward migration
+        IUniswapV2Factory _factory,  // Interface to UniSwapFactory  (our fork factory OR Uni)?
         uint256 _notBeforeBlock
     ) public {
         chef = _chef;
-        oldFactory = _oldFactory;
+        oldFactory = _oldFactory; // should be factory of LP token
         factory = _factory;
         notBeforeBlock = _notBeforeBlock;
     }
