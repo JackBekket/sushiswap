@@ -48,6 +48,7 @@ contract MasterChef is Ownable {
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
+        bool balanceUpdatedMifration;
     }
 
     // Info of each pool.
@@ -56,6 +57,7 @@ contract MasterChef is Ownable {
         uint256 allocPoint;       // How many allocation points assigned to this pool. SUSHIs to distribute per block.
         uint256 lastRewardBlock;  // Last block number that SUSHIs distribution occurs.
         uint256 accSushiPerShare; // Accumulated SUSHIs per share, times 1e12. See below.
+        uint256 migration_delta;  // Migration delta from SLP to LP
     }
 
     // The SUSHI TOKEN!
@@ -114,7 +116,8 @@ contract MasterChef is Ownable {
             lpToken: _lpToken,
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
-            accSushiPerShare: 0
+            accSushiPerShare: 0,
+            migration_delta: 0
         }));
     }
 
@@ -140,10 +143,21 @@ contract MasterChef is Ownable {
         uint256 bal = lpToken.balanceOf(address(this));
         lpToken.safeApprove(address(migrator), bal);
         IERC20 newLpToken = migrator.migrate(lpToken);
-        uint256 delta = bal.sub(newLpToken.balanceOf(address(this));  // difference between SLP and LP
-        uint256 delta_percent = delta.div(1000);                       // delta in percent
-        require(bal == newLpToken.balanceOf(address(this)), "migrate: bad"); // refactor to check with delta
+        pool.migration_delta = bal.sub(newLpToken.balanceOf(address(this)));  // difference between SLP and LP
+        uint256 delta_percent = pool.migration_delta.div(1000);                       // delta in percent
+       // require(bal == newLpToken.balanceOf(address(this)), "migrate: bad"); // refactor to check with delta
+       require(bal == newLpToken.balanceOf(address(this)).add(pool.migration_delta), "migrate: bad");
         pool.lpToken = newLpToken;
+    }
+
+    // Update balance after migration
+    function updateBalance(uint256 _pid) public {               // Maybe make it internal? And call in time of withdraw? Or user would need to call it for every pool
+        
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.balanceUpdatedMifration == false);
+        user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
+        user.balanceUpdatedMifration = true;
     }
 
     // Return reward multiplier over the given _from to _to block.
