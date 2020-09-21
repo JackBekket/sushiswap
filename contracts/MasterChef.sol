@@ -39,6 +39,7 @@ interface IMigratorChef {
 // Have fun reading it. Hopefully it's bug-free. God bless.
 contract MasterChef is Ownable {
     using SafeMath for uint256;
+    using SafeMath for uint;
    // using SafeMath for int256;
     using SafeERC20 for IERC20;
 
@@ -116,15 +117,20 @@ contract MasterChef is Ownable {
     // Check for negative values and safely calculate result
     function checkMath(uint256 A, int256 B) public returns(uint256 C) {
         if (B > 0) {
-           // assert (B <= A);
-            C = A - B;
+            uint256 b1 = uint256(B);
+          //  assert (b1 <= A);
+          //  C = A - b1;
+          C = A.sub(b1);
         }
         if (B < 0) {
-            C = A + B;
+            uint256 b2 = uint256(B);
+          //  C = A + b2;
+            C = A.add(b2);
         }
         return C;
     }    
 
+/*
     // Check how basic checkOzMath work
     function checkOZmath() public returns (uint256 c1, uint256 c2) {
         uint256 a1 = 1;
@@ -138,6 +144,7 @@ contract MasterChef is Ownable {
 
         return (c1,c2);
     }
+    */
 
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
