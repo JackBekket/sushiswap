@@ -58,7 +58,7 @@ contract MasterChef is Ownable {
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
-        bool balanceUpdatedMifration;
+        bool balanceUpdatedMigration;
     }
 
     // Info of each pool.
@@ -207,10 +207,10 @@ contract MasterChef is Ownable {
     function updateBalance(uint256 _pid) public {               // Maybe make it internal? And call in time of withdraw? Or user would need to call it for every pool
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-        require(user.balanceUpdatedMifration == false);
+        require(user.balanceUpdatedMigration == false);
        // user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
         user.amount = checkMath(user.amount,pool.migration_delta);
-        user.balanceUpdatedMifration = true;
+        user.balanceUpdatedMigration = true;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -271,6 +271,7 @@ contract MasterChef is Ownable {
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.balanceUpdatedMigration == true || pool.migration_delta == 0, "not updated after migration");
         updatePool(_pid);
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
@@ -290,6 +291,7 @@ contract MasterChef is Ownable {
     function withdraw(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.balanceUpdatedMigration == true || pool.migration_delta == 0, "not updated after migration");
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
         uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
