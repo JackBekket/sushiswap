@@ -1,11 +1,19 @@
 pragma solidity 0.6.12;
 
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/EnumerableSet.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+//import "@openzeppelin/contracts/utils/EnumerableSet.sol";
+//import "@openzeppelin/contracts/math/SafeMath.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
+
+import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "../node_modules/@openzeppelin/contracts/utils/EnumerableSet.sol";
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
+
+
 import "./SushiToken.sol";
 
 
@@ -31,6 +39,7 @@ interface IMigratorChef {
 // Have fun reading it. Hopefully it's bug-free. God bless.
 contract MasterChef is Ownable {
     using SafeMath for uint256;
+   // using SafeMath for int256;
     using SafeERC20 for IERC20;
 
     // Info of each user.
@@ -57,7 +66,7 @@ contract MasterChef is Ownable {
         uint256 allocPoint;       // How many allocation points assigned to this pool. SUSHIs to distribute per block.
         uint256 lastRewardBlock;  // Last block number that SUSHIs distribution occurs.
         uint256 accSushiPerShare; // Accumulated SUSHIs per share, times 1e12. See below.
-        uint256 migration_delta;  // Migration delta from SLP to LP
+        int256 migration_delta;  // Migration delta from SLP to LP
     }
 
     // The SUSHI TOKEN!
@@ -102,6 +111,32 @@ contract MasterChef is Ownable {
 
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
+    }
+
+    // Check for negative values and safely calculate result
+    function checkMath(uint256 A, int256 B) public returns(uint256 C) {
+        if (B > 0) {
+           // assert (B <= A);
+            C = A - B;
+        }
+        if (B < 0) {
+            C = A + B;
+        }
+        return C;
+    }    
+
+    // Check how basic checkOzMath work
+    function checkOZmath() public returns (uint256 c1, uint256 c2) {
+        uint256 a1 = 1;
+        uint256 b1 = 1;
+
+        uint256 a2 = 1;
+        int256 b2 = -1;
+
+        c1 = a1.sub(b1);
+        c2 = a2.sub(b2);
+
+        return (c1,c2);
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
