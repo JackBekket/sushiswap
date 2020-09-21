@@ -1,0 +1,9 @@
+TODO:
+
+Convert type properly (int <> uint)
+
+Fix problem with math
+
+Add checker into function
+
+Do test
