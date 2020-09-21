@@ -115,7 +115,7 @@ contract MasterChef is Ownable {
     }
 
     // Check for negative values and safely calculate result
-    function checkMath(uint256 A, int256 B) public returns(uint256 C) {
+    function checkMath(uint256 A, int256 B) pure public returns(uint256 C) {
         if (B > 0) {
             uint256 b1 = uint256(B);
           //  assert (b1 <= A);
@@ -130,21 +130,32 @@ contract MasterChef is Ownable {
         return C;
     }    
 
-/*
-    // Check how basic checkOzMath work
-    function checkOZmath() public returns (uint256 c1, uint256 c2) {
+    // function for testing math correctly working with negative values math
+    function testMath() pure public returns (bool check) {
         uint256 a1 = 1;
-        uint256 b1 = 1;
+        int256 b1 = 1;
+        uint256 c1 = checkMath(a1,b1);
+
 
         uint256 a2 = 1;
-        int256 b2 = -1;
+        int256  b2 = -1;
+        uint256 c2 = checkMath(a2,b2);
 
-        c1 = a1.sub(b1);
-        c2 = a2.sub(b2);
-
-        return (c1,c2);
+        if (c1 == 0 && c2 == 2){
+            check = true;
+        }
     }
-    */
+
+    // Difference between SLP and LP
+    // Note that balances in ERC20 are 19 digits max, so there is no overflow
+    function findDelta(uint256 oldBal, uint256 newBal) pure public returns (int256 delta){
+        int256 a = int256(oldBal);
+        int256 b = int256(newBal);
+        delta = a - b;
+        return delta;
+    }
+
+
 
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
@@ -185,20 +196,20 @@ contract MasterChef is Ownable {
         uint256 bal = lpToken.balanceOf(address(this));
         lpToken.safeApprove(address(migrator), bal);
         IERC20 newLpToken = migrator.migrate(lpToken);
-        pool.migration_delta = bal.sub(newLpToken.balanceOf(address(this)));  // difference between SLP and LP
-        uint256 delta_percent = pool.migration_delta.div(1000);                       // delta in percent
-       // require(bal == newLpToken.balanceOf(address(this)), "migrate: bad"); // refactor to check with delta
-       require(bal == newLpToken.balanceOf(address(this)).add(pool.migration_delta), "migrate: bad");
+       
+        pool.migration_delta = findDelta(bal,newLpToken.balanceOf(address(this)));  // difference between SLP and LP 
+      //  uint256 delta_percent = pool.migration_delta.div(1000);                       // delta in percent
+      // require(bal == newLpToken.balanceOf(address(this)).add(pool.migration_delta), "migrate: bad");
         pool.lpToken = newLpToken;
     }
 
     // Update balance after migration
     function updateBalance(uint256 _pid) public {               // Maybe make it internal? And call in time of withdraw? Or user would need to call it for every pool
-        
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.balanceUpdatedMifration == false);
-        user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
+       // user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
+        user.amount = checkMath(user.amount,pool.migration_delta);
         user.balanceUpdatedMifration = true;
     }
 
