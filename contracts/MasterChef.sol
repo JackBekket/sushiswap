@@ -1,11 +1,19 @@
 pragma solidity 0.6.12;
 
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/EnumerableSet.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+//import "@openzeppelin/contracts/utils/EnumerableSet.sol";
+//import "@openzeppelin/contracts/math/SafeMath.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
+
+import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "../node_modules/@openzeppelin/contracts/utils/EnumerableSet.sol";
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
+
+
 import "./SushiToken.sol";
 
 
@@ -31,6 +39,8 @@ interface IMigratorChef {
 // Have fun reading it. Hopefully it's bug-free. God bless.
 contract MasterChef is Ownable {
     using SafeMath for uint256;
+    using SafeMath for uint;
+   // using SafeMath for int256;
     using SafeERC20 for IERC20;
 
     // Info of each user.
@@ -48,7 +58,7 @@ contract MasterChef is Ownable {
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
-        bool balanceUpdatedMifration;
+        bool balanceUpdatedMigration;
     }
 
     // Info of each pool.
@@ -57,7 +67,7 @@ contract MasterChef is Ownable {
         uint256 allocPoint;       // How many allocation points assigned to this pool. SUSHIs to distribute per block.
         uint256 lastRewardBlock;  // Last block number that SUSHIs distribution occurs.
         uint256 accSushiPerShare; // Accumulated SUSHIs per share, times 1e12. See below.
-        uint256 migration_delta;  // Migration delta from SLP to LP
+        int256 migration_delta;  // Migration delta from SLP to LP
     }
 
     // The SUSHI TOKEN!
@@ -104,6 +114,49 @@ contract MasterChef is Ownable {
         return poolInfo.length;
     }
 
+    // Check for negative values and safely calculate result
+    function checkMath(uint256 A, int256 B) pure public returns(uint256 C) {
+        if (B > 0) {
+            uint256 b1 = uint256(B);
+          //  assert (b1 <= A);
+          //  C = A - b1;
+          C = A.sub(b1);
+        }
+        if (B < 0) {
+            uint256 b2 = uint256(B);
+          //  C = A + b2;
+            C = A.add(b2);
+        }
+        return C;
+    }    
+
+    // function for testing math correctly working with negative values math
+    function testMath() pure public returns (bool check) {
+        uint256 a1 = 1;
+        int256 b1 = 1;
+        uint256 c1 = checkMath(a1,b1);
+
+
+        uint256 a2 = 1;
+        int256  b2 = -1;
+        uint256 c2 = checkMath(a2,b2);
+
+        if (c1 == 0 && c2 == 2){
+            check = true;
+        }
+    }
+
+    // Difference between SLP and LP
+    // Note that balances in ERC20 are 19 digits max, so there is no overflow
+    function findDelta(uint256 oldBal, uint256 newBal) pure public returns (int256 delta){
+        int256 a = int256(oldBal);
+        int256 b = int256(newBal);
+        delta = a - b;
+        return delta;
+    }
+
+
+
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) public onlyOwner {
@@ -143,21 +196,21 @@ contract MasterChef is Ownable {
         uint256 bal = lpToken.balanceOf(address(this));
         lpToken.safeApprove(address(migrator), bal);
         IERC20 newLpToken = migrator.migrate(lpToken);
-        pool.migration_delta = bal.sub(newLpToken.balanceOf(address(this)));  // difference between SLP and LP
-        uint256 delta_percent = pool.migration_delta.div(1000);                       // delta in percent
-       // require(bal == newLpToken.balanceOf(address(this)), "migrate: bad"); // refactor to check with delta
-       require(bal == newLpToken.balanceOf(address(this)).add(pool.migration_delta), "migrate: bad");
+       
+        pool.migration_delta = findDelta(bal,newLpToken.balanceOf(address(this)));  // difference between SLP and LP 
+      //  uint256 delta_percent = pool.migration_delta.div(1000);                       // delta in percent
+      // require(bal == newLpToken.balanceOf(address(this)).add(pool.migration_delta), "migrate: bad");
         pool.lpToken = newLpToken;
     }
 
     // Update balance after migration
     function updateBalance(uint256 _pid) public {               // Maybe make it internal? And call in time of withdraw? Or user would need to call it for every pool
-        
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-        require(user.balanceUpdatedMifration == false);
-        user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
-        user.balanceUpdatedMifration = true;
+        require(user.balanceUpdatedMigration == false);
+       // user.amount = user.amount.sub(pool.migration_delta);    // Need to check how it works with negative values(?)
+        user.amount = checkMath(user.amount,pool.migration_delta);
+        user.balanceUpdatedMigration = true;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -218,6 +271,7 @@ contract MasterChef is Ownable {
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.balanceUpdatedMigration == true || pool.migration_delta == 0, "not updated after migration");
         updatePool(_pid);
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
@@ -237,6 +291,7 @@ contract MasterChef is Ownable {
     function withdraw(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.balanceUpdatedMigration == true || pool.migration_delta == 0, "not updated after migration");
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
         uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
